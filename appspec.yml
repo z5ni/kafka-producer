@@ -1,0 +1,20 @@
+# CodeDeploy 버전 (항상 0.0 사용)
+# os: 대상 OS (Linux or Windows)
+version: 0.0
+os: linux
+
+# 번들(tar.gz)의 루트에 있는 모든 파일을 EC2의 /src/kafka-producer로 복사
+files:
+  - source: / # S3 루트
+    destination: /src/kafka-producer # EC2 경로
+
+# 이미 파일이 있으면 덮어씀 (DISALLOW|OVERWRITE|RETAIN)
+file_exists_behavior: OVERWRITE
+
+# permissions: file copy 후 권한 상세 지정
+# 복사한 디렉토리에 ubuntu 권한 및 실행권한(755)을 부여
+permissions:
+  - object: /src/kafka-producer
+    owner: ubuntu
+    group: ubuntu
+    mode: 755
