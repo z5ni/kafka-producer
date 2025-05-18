@@ -1,0 +1,55 @@
+name: deploy to kafka broker
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-northeast-2
+  S3_BUCKET_NAME: datalake-actions-deploy-zion
+  CODE_DEPLOY_APPLICATION_NAME: datalake-deploy
+  CODE_DEPLOY_DEPLOYMENT_GROUP_NAME: kafka-deploy
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+# jobs -> steps -> actions 순
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout release
+        # uses: 이미 만들어진 action 사용
+        uses: actions/checkout@v4
+
+      - name: archive to tar.gz
+        run: tar cvfz ./kafka-producer.tar.gz *
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.1.0
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_ACCESS_SECRET_KEY }}
+
+      - name: upload to S3
+        run: | 
+          aws s3 cp --region ${{ env.AWS_REGION }} \\
+          ./kafka-producer.tar.gz \\
+          s3://${{ env.S3_BUCKET_NAME }}/kafka-producer/kafka-producer.tar.gz
+
+      - name: deploy with AWS codeDeploy
+        run: |
+          aws deploy create-deployment \\
+          --application-name ${{ env.CODE_DEPLOY_APPLICATION_NAME }} \\
+          --deployment-group-name ${{ env.CODE_DEPLOY_DEPLOYMENT_GROUP_NAME }} \\
+          --s3-location bucket=${{ env.S3_BUCKET_NAME }},bundleType=tgz,key=kafka-producer/kafka-producer.tar.gz
+        
